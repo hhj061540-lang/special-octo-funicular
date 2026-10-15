@@ -1,0 +1,50 @@
+name: Test VPN Sleep Endpoint (Replit)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      sleep_ms:
+        description: 'Sleep duration in milliseconds (0–30000)'
+        required: false
+        default: '250'
+
+jobs:
+  test-sleep:
+    name: Execute Sleep Latency Test & Validation
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: "https://vpn-api-dashboard--b84254562.replit.app/api"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run and Validate Sleep Test Endpoint
+        run: |
+          DURATION="${{ github.event.inputs.sleep_ms }}"
+          if [ -z "$DURATION" ]; then
+            DURATION="250"
+          fi
+          
+          echo "Testing sleep endpoint with duration: ${DURATION}ms..."
+          
+          # Capture HTTP response body
+          RESPONSE=$(curl -sS "$BASE_URL/vpn/test/sleep?ms=$DURATION")
+          echo "API Response: $RESPONSE"
+          
+          # Validate that response contains "ok":true (or success indicator)
+          if echo "$RESPONSE" | grep -q '"ok":true'; then
+            echo "[PASS] Response indicates success."
+          else
+            echo "[FAIL] Sleep response missing 'ok:true' or failed."
+            exit 1
+          fi
+          
+          # Optional: Extract and verify requested/elapsed ms if needed using sed/grep
+          REQUESTED_MS=$(echo "$RESPONSE" | sed -n 's/.*"requestedMs":[[:space:]]*\([0-9]*\).*/\1/p')
+          ELAPSED_MS=$(echo "$RESPONSE" | sed -n 's/.*"elapsedMs":[[:space:]]*\([0-9]*\).*/\1/p')
+          
+          echo "Requested: ${REQUESTED_MS:-N/A}ms | Elapsed: ${ELAPSED_MS:-N/A}ms"
+          echo "[PASS] Sleep validation workflow completed successfully."
